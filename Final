@@ -1,0 +1,202 @@
+covid-dash-app/
+├── app.py                 # Main application file
+├── requirements.txt       # Python dependencies
+├── data/
+│   ├── covid_data.csv     # Sample dataset
+├── assets/
+│   ├── style.css          # Custom CSS
+├── README.md              # Project documentation
+import dash
+from dash import dcc, html, Input, Output
+import plotly.express as px
+import plotly.graph_objects as go
+import pandas as pd
+import dash_bootstrap_components as dbc
+
+# Load data
+df = pd.read_csv('data/covid_data.csv')
+df['date'] = pd.to_datetime(df['date'])
+
+# Initialize the app
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+server = app.server
+
+# App layout
+app.layout = dbc.Container([
+    html.H1("COVID-19 Data Explorer", className="mb-4 text-center"),
+    
+    dbc.Row([
+        dbc.Col([
+            html.H3("Filters", className="mb-3"),
+            dcc.Dropdown(
+                id='country-dropdown',
+                options=[{'label': country, 'value': country} 
+                        for country in df['country'].unique()],
+                value=['US', 'UK', 'Germany'],
+                multi=True,
+                className="mb-3"
+            ),
+            dcc.RadioItems(
+                id='metric-radio',
+                options=[
+                    {'label': 'Cases', 'value': 'cases'},
+                    {'label': 'Deaths', 'value': 'deaths'},
+                    {'label': 'Recoveries', 'value': 'recoveries'}
+                ],
+                value='cases',
+                className="mb-3"
+            ),
+            dcc.DatePickerRange(
+                id='date-range',
+                min_date_allowed=df['date'].min(),
+                max_date_allowed=df['date'].max(),
+                start_date=df['date'].min(),
+                end_date=df['date'].max(),
+                className="mb-3"
+            ),
+            dcc.Input(
+                id='population-threshold',
+                type='number',
+                placeholder='Enter population threshold (millions)',
+                value=0,
+                className="mb-3"
+            )
+        ], md=3),
+        
+        dbc.Col([
+            dcc.Tabs([
+                dcc.Tab(label='Trend Analysis', children=[
+                    dcc.Graph(id='time-series-plot')
+                ]),
+                dcc.Tab(label='Country Comparison', children=[
+                    dcc.Graph(id='bar-plot')
+                ]),
+                dcc.Tab(label='Geospatial View', children=[
+                    dcc.Graph(id='map-plot')
+                ])
+            ])
+        ], md=9)
+    ]),
+    
+    html.Div(id='summary-stats', className="mt-4"),
+    
+    html.Footer(
+        "COVID-19 Data Explorer | COMP 4433 Project | Data Source: Our World in Data",
+        className="mt-5 p-3 text-center"
+    )
+], fluid=True)
+
+# Callbacks for interactivity
+@app.callback(
+    [Output('time-series-plot', 'figure'),
+     Output('bar-plot', 'figure'),
+     Output('map-plot', 'figure'),
+     Output('summary-stats', 'children')],
+    [Input('country-dropdown', 'value'),
+     Input('metric-radio', 'value'),
+     Input('date-range', 'start_date'),
+     Input('date-range', 'end_date'),
+     Input('population-threshold', 'value')]
+)
+def update_plots(selected_countries, selected_metric, start_date, end_date, pop_threshold):
+    # Filter data based on inputs
+    filtered_df = df[
+        (df['country'].isin(selected_countries)) & 
+        (df['date'] >= start_date) & 
+        (df['date'] <= end_date) &
+        (df['population'] >= pop_threshold * 1e6)
+    ]
+    
+    # Time series plot
+    ts_fig = px.line(
+        filtered_df, 
+        x='date', 
+        y=selected_metric, 
+        color='country',
+        title=f'Daily COVID-19 {selected_metric.capitalize()} Over Time',
+        labels={selected_metric: f'Number of {selected_metric}'}
+    )
+    ts_fig.update_layout(hovermode='x unified')
+    
+    # Bar plot (latest data comparison)
+    latest_df = filtered_df[filtered_df['date'] == filtered_df['date'].max()]
+    bar_fig = px.bar(
+        latest_df,
+        x='country',
+        y=selected_metric,
+        title=f'Total COVID-19 {selected_metric.capitalize()} by Country',
+        color='country'
+    )
+    
+    # Map plot
+    map_fig = px.choropleth(
+        latest_df,
+        locations='country',
+        locationmode='country names',
+        color=selected_metric,
+        hover_name='country',
+        title=f'Global COVID-19 {selected_metric.capitalize()} Distribution',
+        color_continuous_scale='Viridis'
+    )
+    
+    # Summary statistics
+    total_cases = latest_df[selected_metric].sum()
+    stats = dbc.Card([
+        dbc.CardHeader("Summary Statistics"),
+        dbc.CardBody([
+            html.H4(f"Total {selected_metric}: {total_cases:,}"),
+            html.P(f"Showing data from {len(selected_countries)} countries"),
+            html.P(f"Date range: {pd.to_datetime(start_date).strftime('%Y-%m-%d')} to {pd.to_datetime(end_date).strftime('%Y-%m-%d')}")
+        ])
+    ])
+    
+    return ts_fig, bar_fig, map_fig, stats
+
+# Run the app
+if __name__ == '__main__':
+    app.run_server(debug=True)
+
+Set up the environment:
+
+
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install dash plotly pandas dash-bootstrap-components
+Create requirements.txt:
+pip freeze > requirements.txt
+# COVID-19 Data Explorer
+
+An interactive Dash application for exploring COVID-19 data.
+
+## Features
+- Interactive visualizations
+- Multiple filtering options
+- Responsive design
+
+## Installation
+1. Clone this repository
+2. Create virtual environment: `python -m venv venv`
+3. Activate environment: `source venv/bin/activate`
+4. Install dependencies: `pip install -r requirements.txt`
+5. Run the app: `python app.py`
+
+## Data Source
+COVID-19 data from Our World in Data
+# COVID-19 Data Explorer
+
+An interactive Dash application for exploring COVID-19 data.
+
+## Features
+- Interactive visualizations
+- Multiple filtering options
+- Responsive design
+
+## Installation
+1. Clone this repository
+2. Create virtual environment: `python -m venv venv`
+3. Activate environment: `source venv/bin/activate`
+4. Install dependencies: `pip install -r requirements.txt`
+5. Run the app: `python app.py`
+
+## Data Source
+COVID-19 data from Our World in Data
