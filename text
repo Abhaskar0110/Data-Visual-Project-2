@@ -1,0 +1,8 @@
+covid-dash-app/
+├── app.py                 # Main application file
+├── requirements.txt       # Python dependencies
+├── data/
+│   ├── covid_data.csv     # Sample dataset
+├── assets/
+│   ├── style.css          # Custom CSS
+├── README.md              # Project documentation
